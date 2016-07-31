@@ -14,11 +14,14 @@
 int main(int argc, const char *argv[])
 {
     int connfd;
-	char ch[] = "{\"userName\":\"lijie\",\"password\":\"12345\",\"phoneNumber\":\"12345678901\"}";
+//  char ch[] = "{\"userName\":\"lijie\",\"password\":\"12345\",\"phoneNumber\":\"12345678901\"}";
+//  char ch[] = "{\"userName\":\"lijie\",\"phoneNumber\":\"12345678901\"}"; //忘记密码
+//  char ch[] = "{\"userToken\":\"liji1234\",\"oldPassword\":\"1234\",\"newPassword\":\"4321\"}"; //忘记密码
+	char ch[] = "{\"userName\":\"lijie\",\"userToken\":\"liji1234\",\"deviceNumber\":0,\"deviceCode\":1}";
 	unsigned char rch[1024] = {0};
 	unsigned char recv[1024] = {0};
 	rch[0] = 0xaa;
-	rch[1] = 0x00;
+	rch[1] = 0x0a;
 	short *data_len = (short*)(&rch[2]);
 	*data_len = strlen(ch) + 1;
 	strncpy((rch+4),ch,*data_len);
@@ -27,7 +30,7 @@ int main(int argc, const char *argv[])
 	printf("rch[2,3]:%d\n",*data_len);
 	printf("rchdata:%s\n",&rch[4]);
 
-	
+#if 0	
 
     if(argc != 3)
     {
@@ -35,6 +38,7 @@ int main(int argc, const char *argv[])
 		exit(EXIT_FAILURE);
         //提示
     }
+#endif
 
     //1.socket
     connfd = socket(AF_INET,SOCK_STREAM,0);
@@ -53,8 +57,8 @@ int main(int argc, const char *argv[])
 //	sin_addr.s_addr = inet_addr(argv[1]);
 
 	saddr.sin_family = AF_INET;
-	saddr.sin_port = htons(atoi(argv[2]));
-	saddr.sin_addr.s_addr =  inet_addr(argv[1]);
+	saddr.sin_port = htons(atoi("8888"));
+	saddr.sin_addr.s_addr =  inet_addr("10.141.102.193");
 	if(connect(connfd,(struct sockaddr*)&saddr,sizeof(saddr)) != 0 )
 	{
 		perror("bind fail");

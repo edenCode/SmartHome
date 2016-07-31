@@ -12,10 +12,28 @@ void get_M0_data(void*p){
 	struct pointer_for_M0_data *pdata = ((struct pointer_for_M0_data*)p);
 	struct ShareMemeryData *pgetM0StructData = pdata->pgetM0StructData;
 	pthread_mutex_t*pmutex = pdata->pmutex;
-	pthread_cond_t*pcond = pdata->pcond;
 	int ret = 0;
+#ifdef DEBUG2
+	pgetM0StructData->temperature = 12;
+	pgetM0StructData->humidity = 13;
+	pgetM0StructData->illumination = 14;
+	pgetM0StructData->triaxial[0] = 15;
+	pgetM0StructData->triaxial[1] = 16;
+	pgetM0StructData->triaxial[2]  = 17;
+	pgetM0StructData->led1 = 0;
+	pgetM0StructData->led2 = 0;
+	pgetM0StructData->fan = 0;
+	pgetM0StructData->door = 0;
+	pgetM0StructData->flag = 1;
+#endif 
+#ifdef DEBUG2
+	printf("get_M0_data:temperature %d\n",pgetM0StructData->temperature);
+#endif 
 	while(1){
 		ret = P(semid,SEM_R);
+#ifdef DEBUG2
+	printf("ret = P(semid,SEM_R);");
+#endif
 		if(-1 == ret){
 			fprintf(stderr,"get_M0_data p fail");
 			break;
@@ -26,11 +44,6 @@ void get_M0_data(void*p){
 			break;
 		}
 		memcpy(pgetM0StructData,pshareMemeryData,sizeof(struct ShareMemeryData));
-		ret = pthread_cond_broadcast(pcond);
-		if( 0 != ret){
-			fprintf(stderr,"pthread_cond_broadcast fail");
-			break;
-		}
 		ret = pthread_mutex_unlock(pmutex);	
 		if( 0 != ret){
 			fprintf(stderr,"pthread_mutex_unlock fail");
@@ -55,7 +68,7 @@ void *tackle_msg(void*puart_fd){
 			perror("msgrcv fail");
 			return ((void*)(-1));
 		}
-		ret = uart_send(*((int*)puart_fd), ((char*)&msg_ele.msg),4);
+		ret = uart_send(*((int*)puart_fd), ((char*)&msg_ele.msg),MSGSZ);
 		if(-1 == ret){
 			perror("puart_fd fail");
 			return ((void*)(-1));
@@ -275,7 +288,13 @@ void do_something(void* p){
 			send_msg_to_app(EVENT_MODIFY_PASSWORD,json_obj_app_str,pclientdata->client_fd);
 			break;
 		case EVENT_GET_TEMP:
+#ifdef DEBUG2
+			printf("EVENT_GET_TEMP\n");
+#endif 
 			ret = get_temperature(json_data,json_len);
+#ifdef DEBUG2
+			printf("return get_temperature");
+#endif
 			if(-1 != ret){
 				json_object_object_add(json_obj_app,"temperature",json_object_new_int(ret));
 				json_obj_app_str = make_json_str(json_obj_app,STATE_OK,"get_temperature success");
@@ -298,7 +317,7 @@ void do_something(void* p){
 		case EVENT_GET_ILLUMINATION:
 			ret = get_illumination(json_data,json_len);
 			if(-1 != ret){
-				json_object_object_add(json_obj_app,"illumination",json_object_new_int(ret));
+				json_object_object_add(json_obj_app,"light",json_object_new_int(ret));
 				json_obj_app_str = make_json_str(json_obj_app,STATE_OK,"get illumination success");
 			}else{
 				json_obj_app_str = make_json_str(json_obj_app,STATE_FAILE,"get illumination fail");
@@ -324,15 +343,15 @@ void do_something(void* p){
 				int ret1 = 0;
 				ret1 = check_M0_data(FM0Data,&dev_stata,&dev_num,EVENT_LED);
 				if(0 == ret1){
-					json_object_object_add(json_obj_app,"deviceCode",json_object_new_int(0));
+					json_object_object_add(json_obj_app,"deviceState",json_object_new_int(dev_stata));
 					json_obj_app_str = make_json_str(json_obj_app,STATE_OK,"set led success");
 				}else{
-					json_object_object_add(json_obj_app,"deviceCode",json_object_new_int(1));
-					json_obj_app_str = make_json_str(json_obj_app,STATE_FAILE,"set led fail");
+					json_object_object_add(json_obj_app,"deviceState",json_object_new_int(-1));
+					json_obj_app_str = make_json_str(json_obj_app,STATE_FAILE,"time out");
 				}
 				send_msg_to_app(EVENT_LED,json_obj_app_str,pclientdata->client_fd);
 			}else{
-				json_object_object_add(json_obj_app,"deviceCode",json_object_new_int(1));
+				json_object_object_add(json_obj_app,"deviceState",json_object_new_int(-1));
 				json_obj_app_str = make_json_str(json_obj_app,STATE_FAILE,"server fail");
 				fprintf(stderr,"send msg to queue fail");
 				send_msg_to_app(EVENT_LED,json_obj_app_str,pclientdata->client_fd);
@@ -344,15 +363,15 @@ void do_something(void* p){
 				int ret1 = 0;
 				ret1 = check_M0_data(FM0Data,&dev_stata,&dev_num,EVENT_FAN);
 				if(0 == ret1){
-					json_object_object_add(json_obj_app,"deviceCode",json_object_new_int(0));
+					json_object_object_add(json_obj_app,"deviceState",json_object_new_int(dev_stata));
 					json_obj_app_str = make_json_str(json_obj_app,STATE_OK,"set fan success");
 				}else{
-					json_object_object_add(json_obj_app,"deviceCode",json_object_new_int(1));
+					json_object_object_add(json_obj_app,"deviceState",json_object_new_int(-1));
 					json_obj_app_str = make_json_str(json_obj_app,STATE_FAILE,"set fan fail");
 				}
-				send_msg_to_app(EVENT_LED,json_obj_app_str,pclientdata->client_fd);
+				send_msg_to_app(EVENT_FAN,json_obj_app_str,pclientdata->client_fd);
 			}else{
-				json_object_object_add(json_obj_app,"deviceCode",json_object_new_int(1));
+				json_object_object_add(json_obj_app,"deviceState",json_object_new_int(1));
 				json_obj_app_str = make_json_str(json_obj_app,STATE_FAILE,"server fail");
 				fprintf(stderr,"send msg to queue fail");
 				send_msg_to_app(EVENT_FAN,json_obj_app_str,pclientdata->client_fd);
@@ -365,15 +384,15 @@ void do_something(void* p){
 				int ret1 = 0;
 				ret1 = check_M0_data(FM0Data,&dev_stata,&dev_num,EVENT_DOOR);
 				if(0 == ret1){
-					json_object_object_add(json_obj_app,"deviceCode",json_object_new_int(0));
-					json_obj_app_str = make_json_str(json_obj_app,STATE_OK,"set led success");
+					json_object_object_add(json_obj_app,"deviceState",json_object_new_int(dev_stata));
+					json_obj_app_str = make_json_str(json_obj_app,STATE_OK,"set door success");
 				}else{
-					json_object_object_add(json_obj_app,"deviceCode",json_object_new_int(1));
-					json_obj_app_str = make_json_str(json_obj_app,STATE_FAILE,"set led fail");
+					json_object_object_add(json_obj_app,"deviceState",json_object_new_int(-1));
+					json_obj_app_str = make_json_str(json_obj_app,STATE_FAILE,"set door fail");
 				}
-				send_msg_to_app(EVENT_LED,json_obj_app_str,pclientdata->client_fd);
+				send_msg_to_app(EVENT_DOOR,json_obj_app_str,pclientdata->client_fd);
 			}else{
-				json_object_object_add(json_obj_app,"deviceCode",json_object_new_int(1));
+				json_object_object_add(json_obj_app,"deviceState",json_object_new_int(1));
 				json_obj_app_str = make_json_str(json_obj_app,STATE_FAILE,"server fail");
 				fprintf(stderr,"send msg to queue fail");
 				send_msg_to_app(EVENT_DOOR,json_obj_app_str,pclientdata->client_fd);
@@ -416,11 +435,16 @@ void do_something(void* p){
 int check_M0_data(struct pointer_for_M0_data FM0Data,int*pdev_stata,int*pdev_num,int event){
 	int i = 10;
 	struct ShareMemeryData *pM0Data = FM0Data.pgetM0StructData;
+#ifdef DEBUG2
+	fprintf(stderr,"in check_M0_data\n");
+#endif
 	while(i--){
 		pthread_mutex_lock(FM0Data.pmutex);
-		pthread_cond_wait(FM0Data.pcond,FM0Data.pmutex);
 		switch(event){
 		case EVENT_LED:
+#ifdef DEBUG2
+			fprintf(stderr,"in check_M0_data:EVENT_LED\n");
+#endif
 			if((pM0Data->flag == 1)&&((*(&pM0Data->led1+*pdev_num)) == *pdev_stata)){
 				pthread_mutex_unlock(FM0Data.pmutex);
 				return 0;
@@ -431,15 +455,18 @@ int check_M0_data(struct pointer_for_M0_data FM0Data,int*pdev_stata,int*pdev_num
 				pthread_mutex_unlock(FM0Data.pmutex);
 				return 0;
 			}
+			break;
 		case EVENT_DOOR:
 			if((pM0Data->flag == 1)&&((*(&pM0Data->door)) == *pdev_stata)){
 				pthread_mutex_unlock(FM0Data.pmutex);
 				return 0;
 			}
+			break;
 		default:
 			pthread_mutex_unlock(FM0Data.pmutex);
 			return -1;
 		}
+		pthread_mutex_unlock(FM0Data.pmutex);
 		sleep(1);
 	}
 	return -1;
@@ -460,21 +487,21 @@ int set_fan(char*json_data, int *pdev_stata,int *pdev_num){
 	json_object*json_obj_data = NULL;
 	json_obj_data = json_tokener_parse(json_data);
 	get_string_json_member(json_obj_data,"userName",user_name);
-	get_string_json_member(json_obj_data,"userToken",user_name);
+	get_string_json_member(json_obj_data,"userToken",user_token);
 	deviceNumber = get_int_json_member(json_obj_data,"deviceNumber");
 	deviceCode = get_int_json_member(json_obj_data,"deviceCode");
 	*pdev_stata = deviceCode;
 	*pdev_num = deviceNumber;
 
 	msg_ele.type = 1;
-	msg_ele.msg = make_msg(DEV_LED,deviceNumber,deviceCode);
+	msg_ele.msg = make_msg(DEV_FAN,deviceNumber,deviceCode);
 #ifdef DEBUG1
-	char*p = (char*)&msg_ele.msg;
-	printf("-----------msg_ele--------");
-	printf("type = %x\n",p[0]);
-	printf("dev = %x\n",p[1]);
-	printf("deviceNumber = %x\n",p[2]);
-	printf("deviceCode = %x\n",p[3]);
+	unsigned char*p = (unsigned char*)&msg_ele.msg;
+	printf("-----------msg_ele--------\n");
+	printf("type = %x\n",p[3]);
+	printf("dev = %x\n",p[2]);
+	printf("deviceNumber = %x\n",p[1]);
+	printf("deviceCode = %x\n",p[0]);
 #endif
 
 	//查看用户名是否存在
@@ -513,21 +540,21 @@ int set_door(char*json_data,int*pdev_stata,int*pdev_num){
 	json_object*json_obj_data = NULL;
 	json_obj_data = json_tokener_parse(json_data);
 	get_string_json_member(json_obj_data,"userName",user_name);
-	get_string_json_member(json_obj_data,"userToken",user_name);
+	get_string_json_member(json_obj_data,"userToken",user_token);
 	deviceNumber = get_int_json_member(json_obj_data,"deviceNumber");
 	deviceCode = get_int_json_member(json_obj_data,"deviceCode");
 	*pdev_stata = deviceCode;
 	*pdev_num = deviceNumber;
 
 	msg_ele.type = 1;
-	msg_ele.msg = make_msg(DEV_LED,deviceNumber,deviceCode);
+	msg_ele.msg = make_msg(DEV_DOOR,deviceNumber,deviceCode);
 #ifdef DEBUG1
-	char*p = (char*)&msg_ele.msg;
-	printf("-----------msg_ele--------");
-	printf("type = %x\n",p[0]);
-	printf("dev = %x\n",p[1]);
-	printf("deviceNumber = %x\n",p[2]);
-	printf("deviceCode = %x\n",p[3]);
+	unsigned char*p = (unsigned char*)&msg_ele.msg;
+	printf("-----------msg_ele--------\n");
+	printf("type = %x\n",p[3]);
+	printf("dev = %x\n",p[2]);
+	printf("deviceNumber = %x\n",p[1]);
+	printf("deviceCode = %x\n",p[0]);
 #endif
 
 	//查看用户名是否存在
@@ -585,7 +612,6 @@ struct ShareMemeryData get_device_state(char*json_data,int json_len){
 
 	if(pbool_user_name){
 		pthread_mutex_lock(FM0Data.pmutex);
-		pthread_cond_wait(FM0Data.pcond,FM0Data.pmutex);
 		temp.temperature = pM0Data->temperature;
 		temp.humidity = pM0Data->humidity;
 		temp.illumination = pM0Data->humidity;
@@ -636,7 +662,7 @@ int set_led(char*json_data,int*pdev_stata,int*pdev_num){
 	json_object*json_obj_data = NULL;
 	json_obj_data = json_tokener_parse(json_data);
 	get_string_json_member(json_obj_data,"userName",user_name);
-	get_string_json_member(json_obj_data,"userToken",user_name);
+	get_string_json_member(json_obj_data,"userToken",user_token);
 	deviceNumber = get_int_json_member(json_obj_data,"deviceNumber");
 	deviceCode = get_int_json_member(json_obj_data,"deviceCode");
 	*pdev_stata = deviceCode;
@@ -645,12 +671,14 @@ int set_led(char*json_data,int*pdev_stata,int*pdev_num){
 	msg_ele.type = 1;
 	msg_ele.msg = make_msg(DEV_LED,deviceNumber,deviceCode);
 #ifdef DEBUG1
-	char*p = (char*)&msg_ele.msg;
+	unsigned char*p = (unsigned char*)&msg_ele.msg;
 	printf("-----------msg_ele--------\n");
-	printf("type = %x\n",p[0]);
-	printf("dev = %x\n",p[1]);
-	printf("deviceNumber = %x\n",p[2]);
-	printf("deviceCode = %x\n",p[3]);
+	printf("type = %x\n",p[3]);
+	printf("dev = %x\n",p[2]);
+	printf("deviceNumber = %x\n",p[1]);
+	printf("deviceCode = %x\n",p[0]);
+	printf("user_name = %s\n",user_name);
+	printf("user_token = %s\n",user_token);
 #endif
 
 	//查看用户名是否存在
@@ -662,6 +690,10 @@ int set_led(char*json_data,int*pdev_stata,int*pdev_num){
 		json_object_put(json_obj_data);
 		return -1;
 	}
+#ifdef DEBUG2
+		fprintf(stderr,"set_led:ret1=%d\n",ret);
+		fprintf(stderr,"set_led:pbool_user_name=%d\n",pbool_user_name);
+#endif 
 
 	if(pbool_user_name){
 		ret = msgsnd(msgid, &msg_ele, MSGSZ, 0);
@@ -670,6 +702,9 @@ int set_led(char*json_data,int*pdev_stata,int*pdev_num){
 			return ret;
 		}
 		json_object_put(json_obj_data);
+#ifdef DEBUG2
+		fprintf(stderr,"set_led:ret2=%d\n",ret);
+#endif 
 		return ret;
 	}
 	return -2;
@@ -698,11 +733,17 @@ int get_temperature(char*json_data,int json_len){
 		json_object_put(json_obj_data);
 		return -1;
 	}
+#ifdef DEBUG2
+	printf("pbool_user_name = %d\n",pbool_user_name);
+#endif
 
 	if(pbool_user_name){
-		int temp = 0;
+		int temp = 12;
+//		return temp;
 		pthread_mutex_lock(FM0Data.pmutex);
-		pthread_cond_wait(FM0Data.pcond,FM0Data.pmutex);
+#ifdef DEBUG2
+		fprintf(stderr,"pthread_mutex_lock(FM0Data.pmutex);\n");
+#endif
 		temp = pM0Data->temperature;
 		pthread_mutex_unlock(FM0Data.pmutex);
 		json_object_put(json_obj_data);
@@ -737,7 +778,6 @@ int get_humidity(char*json_data,int json_len){
 	if(pbool_user_name){
 		int humidity = 0;
 		pthread_mutex_lock(FM0Data.pmutex);
-		pthread_cond_wait(FM0Data.pcond,FM0Data.pmutex);
 		humidity = pM0Data->humidity;
 		pthread_mutex_unlock(FM0Data.pmutex);
 		json_object_put(json_obj_data);
@@ -772,7 +812,6 @@ int get_illumination(char*json_data,int json_len){
 	if(pbool_user_name){
 		int illumination = 0;
 		pthread_mutex_lock(FM0Data.pmutex);
-		pthread_cond_wait(FM0Data.pcond,FM0Data.pmutex);
 		illumination = pM0Data->illumination;
 		pthread_mutex_unlock(FM0Data.pmutex);
 		json_object_put(json_obj_data);
@@ -806,7 +845,6 @@ int get_AIXS(char*json_data,float* ptriaxialData){
 
 	if(pbool_user_name){
 		pthread_mutex_lock(FM0Data.pmutex);
-		pthread_cond_wait(FM0Data.pcond,FM0Data.pmutex);
 		ptriaxialData[0] = pM0Data->triaxial[0];
 		ptriaxialData[1] = pM0Data->triaxial[1];
 		ptriaxialData[2] = pM0Data->triaxial[2];

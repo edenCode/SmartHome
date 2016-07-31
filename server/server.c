@@ -29,7 +29,6 @@ int main(int argc, const char *argv[])
 	int keepcnt = 5;
 	char* sql_create_user_info_table;
 	pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
-	pthread_cond_t cond = PTHREAD_COND_INITIALIZER;
 	struct ShareMemeryData M0_Struct_Data;
 	
 
@@ -124,7 +123,6 @@ int main(int argc, const char *argv[])
 	if(pid > 0){
 		FM0Data.pgetM0StructData = &M0_Struct_Data;
 		FM0Data.pmutex = &mutex;
-		FM0Data.pcond = &cond;
 
 		ret = requst_thread_work(pthread_pool,get_M0_data,&FM0Data);
 		if(-1 == ret){

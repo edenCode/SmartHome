@@ -62,13 +62,14 @@
 #define FSTM0 0xdd
 #define DEV_LED 0x04
 #define DEV_FAN 0x05
-#define DEV_BEE 0x06
+#define DEV_DOOR 0x06
 
 #define SEM_W 1
 #define SEM_R 0
 
-#define DEBUG1
 #define DEBUG
+#define DEBUG1
+#define DEBUG2
 
 #define MSGSZ (sizeof(struct msg_element) - sizeof(long))
 
@@ -80,7 +81,6 @@ struct msg_element{
 struct pointer_for_M0_data{
 	struct ShareMemeryData*pgetM0StructData;
 	pthread_mutex_t*pmutex;
-	pthread_cond_t*pcond;
 };
 
 struct clientData{
