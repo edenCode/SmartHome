@@ -1,0 +1,9 @@
+<resources>
+    <string name="app_name">Home</string>
+    <string name="button01">打乱</string>
+    <string name="button02">换一张</string>
+    <string name="menu_about">关于</string>
+    <string name="menu_exit">退出</string>
+
+
+</resources>
